@@ -4,11 +4,11 @@ $imple $aver is a CLI budget tool to help you keep track of expenses and manage 
 With this tool you can keep track of multiple accounts all having there respective targeted budget. Of course you can also 
 search for your transactions via targeting a specific account or but using the search for transactions feature. 
 
-# need dependencies
+# Needed Dependencies
 - python version 3.8.13 is needed (If you run this in the Virtual Environment this can be ignored)
 - pipenv virtual environment
 
-# installation instructions
+# Installation Instructions
 - fork / clone this repository
 - pipenv install
 - pipenv shell (Needed for correct python version and dependencies)
