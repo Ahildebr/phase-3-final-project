@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __init__ import *  
-from cli import *
+from cli import start_cli
 
 
 
