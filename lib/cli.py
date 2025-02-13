@@ -136,13 +136,37 @@ def view_account_details(account):
 
 def create_account():
     clear_screen()
-    name = input("Enter the name of the account: ").strip()
-    acc_type = input("Enter the type of account (Checking/Savings/Wallet): ").strip().capitalize()
-    target_budget = float(input("Enter target budget amount: $"))
+    print("--------[CREATE ACCOUNT]--------")
 
-    new_account = Account.create(name, acc_type, target_budget)
-    print(f"Account '{new_account.account_name}' created successfully!")
-    input("Press Enter to return to the main menu.")
+    while True:
+        name = input("Enter the name of the account: ").strip()
+        if not name:
+            print("Account name cannot be empty. Please enter a valid name.")
+            continue
+
+        acc_type = input("Enter the type of account (Checking/Savings/Wallet): ").strip().capitalize()
+        if acc_type not in ["Checking", "Savings", "Wallet"]:
+            print("Invalid account type. Please enter 'Checking', 'Savings', or 'Wallet'.")
+            continue
+
+        target_budget = input("Enter target budget amount: $").strip()
+        try:
+            target_budget = float(target_budget)
+            if target_budget <= 0:
+                print("Target budget must be a positive number.")
+                continue
+        except ValueError:
+            print("Invalid budget amount. Please enter a valid number.")
+            continue
+        
+        # If all inputs are valid, create the account
+        new_account = Account.create(name, acc_type, target_budget)
+
+        if new_account:
+            print(f"Account '{new_account.account_name}' created successfully!")
+        input("Press Enter to return to the main menu.")
+        break
+
 
 def delete_account():
     clear_screen()

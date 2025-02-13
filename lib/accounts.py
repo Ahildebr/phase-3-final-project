@@ -67,10 +67,31 @@ class Account:
     ### CLASS METHODS
     @classmethod
     def create(cls, account_name, account_type, target_budget):
+        """Validates user input and creates a new account if valid."""
+        valid_types = ["Checking", "Savings", "Wallet"]
+
+        if not account_name:
+            print("Account name cannot be empty.")
+            return None
+
+        if account_type not in valid_types:
+            print("Invalid account type. Please enter 'Checking', 'Savings', or 'Wallet'.")
+            return None
+
+        try:
+            target_budget = float(target_budget)
+            if target_budget <= 0:
+                print("Target budget must be a positive number.")
+                return None
+        except ValueError:
+            print("Invalid budget amount. Please enter a valid number.")
+            return None
+
         sql = "INSERT INTO Accounts (account_name, account_type, target_budget) VALUES (?, ?, ?)"
         CURSOR.execute(sql, (account_name, account_type, target_budget))
         CONN.commit()
-        account_id = CURSOR.lastrowid  
+        account_id = CURSOR.lastrowid
+
         return cls(account_id, account_name, account_type, target_budget)
 
     @classmethod
