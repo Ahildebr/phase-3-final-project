@@ -92,3 +92,10 @@ class Transaction:
         CURSOR.execute(sql, (transaction_id,))
         txn = CURSOR.fetchone()
         return cls(*txn) if txn else None
+    
+    @classmethod
+    def delete_by_account(cls, account_id):
+        sql = "DELETE FROM Transactions WHERE account_id = ?"
+        CURSOR.execute(sql, (account_id,))
+        CONN.commit()
+        print(f"✅ All transactions for Account ID {account_id} deleted successfully.")

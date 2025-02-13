@@ -57,6 +57,8 @@ class Account:
         print(f"Account '{self.account_name}' saved successfully.")
 
     def delete(self):
+        from transactions import Transaction  
+        Transaction.delete_by_account(self.id) 
         sql = '''DELETE FROM Accounts WHERE id = ?'''  
         CURSOR.execute(sql, (self.id,))
         CONN.commit()
