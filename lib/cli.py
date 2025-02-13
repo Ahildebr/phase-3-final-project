@@ -1,12 +1,7 @@
 from helpers import *
-from accounts import *
-from transactions import *
+from accounts import Account
+from transactions import Transaction
 import sys
-
-
-
-
-
 
 
 def start_cli():
@@ -33,29 +28,28 @@ def start_cli():
                    /$$  \ $$|  $$$$$$$   \  $/  |  $$$$$$$| $$      
                   |  $$$$$$/ \_______/    \_/    \_______/|__/      
                    \_  $$_/                                         
-                     \__/                                                                                     
+                     \__/                                           
 """)
-    input("\nPress Enter to continue...")
+    input("Press Enter to continue...")
     main_menu()
-
 
 def main_menu():
     while True:
         clear_screen()
-        print(r"""
+        print("""
         =======================================
         |       WELCOME TO $IMPLE $AVER       |
         =======================================
         | 1. Select Account                   |
         | 2. Create Account                   |
         | 3. Delete Account                   |
-        | 4. Veiw All Transactions            |
-        | 5. View Transactions By Account     |
-        | 6. Search Transactions              |
+        | 4. Manage Transactions              |
+        | 5. Find Account by ID               |
+        | 6. Find Transaction by ID           |
         | 7. Exit                             |
         =======================================
         """)
-        choice = input("Enter your choice (1-6): ")
+        choice = input("Enter your choice (1-7): ").strip()
 
         if choice == "1":
             select_account()
@@ -64,349 +58,267 @@ def main_menu():
         elif choice == "3":
             delete_account()
         elif choice == "4":
-            view_all_transactions()
+            manage_transactions()
         elif choice == "5":
-            find_transactions_by_account()
+            find_account_by_id()  #  Calls new function
         elif choice == "6":
-            search_transactions()
+            find_transaction_by_id()  #  Calls new function
         elif choice == "7":
             exit_program()
         else:
             input("Invalid Choice. Press Enter to try again.")
 
-
 def select_account():
     clear_screen()
-    print("\n--- SELECT AN ACCOUNT ---\n")
+    print("--- SELECT AN ACCOUNT ---")
 
-    CURSOR.execute("SELECT id, account_name, account_type, target_budget FROM Accounts")
-    accounts = CURSOR.fetchall()
-
+    accounts = Account.get_all()
     if not accounts:
         print("No accounts found. Please create an account first.")
-        input("\nPress Enter to return to the main menu.")
+        input("Press Enter to return to the main menu.")
         return
 
-    
-    print("Available Accounts:")
-    i = 0
-    while i < len(accounts):
-        account = accounts[i]  # Each `account` is a tuple: (id, name, type, budget)
-        print(f"{i + 1}. {account[1]} ({account[2]}) - Target Budget: ${account[3]:.2f}")
-        i += 1 
+    print("ID | Account Name | Type")
+    print("-" * 30)
+    for i, account in enumerate(accounts, start=1):
+        print(f"{account.id} | {account.account_name} | {account.account_type}")
 
     while True:
         try:
-            choice = int(input("Enter the number of the account you'd like to select: "))
-            if 1 <= choice <= len(accounts):
-                selected_account = accounts[choice - 1]  # Get chosen account tuple
-                view_account_details(selected_account)  # Show account details
+            choice = int(input("Enter the Account ID you'd like to select (or 0 to return): "))
+            
+            if choice == 0:
+                return  #  Go back to the main menu
+            
+            selected_account = next((acc for acc in accounts if acc.id == choice), None)
+
+            if selected_account:
+                view_account_details(selected_account)
                 return
             else:
-                print("Invalid choice. Please try again.")
+                print("Invalid Account ID. Please enter a valid ID.")
+
         except ValueError:
             print("Invalid input. Please enter a number.")
 
-
 def view_account_details(account):
     clear_screen()
-    print("\n--- ACCOUNT DETAILS ---\n")
+    print("--- ACCOUNT DETAILS ---")
+    print(f"Account Name: {account.account_name}")
+    print(f"Account Type: {account.account_type}")
+    print(f"Target Budget: ${account.target_budget:.2f}")
 
-    # Display account information
-    print(f"Account Name: {account[1]}")
-    print(f"Account Type: {account[2]}")
-    print(f"Target Budget: ${account[3]:.2f}\n")
-
-    # Fetch and display transaction history
-    CURSOR.execute("SELECT amount, transaction_type FROM Transactions WHERE account_id = ?", (account[0],))
-    transactions = CURSOR.fetchall()
+    transactions = Transaction.get_by_account(account.id)
 
     if transactions:
         print("--- Transaction History ---")
         for txn in transactions:
-            print(f"{txn[1]}: ${txn[0]:.2f}")
+            print(f"{txn.transaction_type}: ${txn.amount:.2f}")
     else:
-        print("No transactions recorded for this account.")
+        print("No transactions recorded.")
 
-    # Add option to record a transaction
-    print("\n1. Add Transaction")
+    print("1. Add Transaction")
     print("2. Return to Main Menu")
-    
-    choice = input("Enter your choice: ")
 
+    choice = input("Enter your choice: ").strip()
     if choice == "1":
-        add_transaction(account)
+        try:
+            amount = float(input("Enter transaction amount: $"))
+            trans_type = input("Enter transaction type (Income/Expense): ").strip().capitalize()
+            Transaction.add(account.id, amount, trans_type)  #  Call `Transaction.add()` instead of separate function
+            print(f" {trans_type} of ${amount:.2f} added to {account.account_name}.")
+        except ValueError as e:
+            print(f"{e}")
+        input("Press Enter to return to account details.")
+        view_account_details(account)  #  Refresh account details
     elif choice == "2":
         main_menu()
-    else:
-        print("Invalid choice. Returning to Main Menu.")
-        main_menu()
-
 
 def create_account():
     clear_screen()
-    print("--------[CREATE ACCOUNT]--------")
-    
-    name = input("Enter the name of the account: ")
-    while not name:
-        print("Error: Account name cannot be empty.")
-        name = input("Enter the name of the account: ")
-    clear_screen()
+    name = input("Enter the name of the account: ").strip()
+    acc_type = input("Enter the type of account (Checking/Savings/Wallet): ").strip().capitalize()
+    target_budget = float(input("Enter target budget amount: $"))
 
-    print("--------[CREATE ACCOUNT]--------")
-    print("Account Types: Wallet, Checking, Savings")
-    acc_type = input("Enter the type of account: ")
-    while acc_type not in ["Checking", "Savings", "Wallet"]:
-        print("Error: Invalid account type.")
-        acc_type = input("Enter the type of account: ")
-    clear_screen()
-
-    print("--------[CREATE ACCOUNT]--------")
-    while True:
-        try:
-            target_budget = float(input("Enter target budget amount: $"))
-            if target_budget <= 0:
-                print("Error: Target budget must be greater than zero.")
-            else:
-                break
-        except ValueError:
-            print("Error: Please enter a valid number.")
-    clear_screen()
-
-    print("--------[CREATE ACCOUNT]--------")
-    new_account = Account(name, acc_type, target_budget)
-    new_account.save()
-    print("Account created successfully!")
-    input("\nPress Enter to return to the main menu.")
-    
+    new_account = Account.create(name, acc_type, target_budget)
+    print(f"Account '{new_account.account_name}' created successfully!")
+    input("Press Enter to return to the main menu.")
 
 def delete_account():
     clear_screen()
     print("------- DELETE ACCOUNT -------")
 
-    # Fetch all accounts
-    sql = "SELECT id, account_name FROM Accounts"
-    CURSOR.execute(sql)
-    accounts = CURSOR.fetchall()
-
+    accounts = Account.get_all()
     if not accounts:
         print("No Accounts found.")
-        input("Press Enter to return to the main menu.")
         return
-    
-    print("Select an account to delete: ")
-    i = 0 
-    while i < len(accounts):
-        print(f"{i + 1}. {accounts[i][1]}")
-        i += 1 
 
-    while True:
-        try: 
-            choice = int(input("Enter the number of the account to delete: "))
-            if 1 <= choice <= len(accounts):
-                selected_account = accounts[choice - 1]
-                account_id = selected_account[0]  # Assign account_id properly
-                break
+    for i, account in enumerate(accounts, start=1):
+        print(f"{i}. {account.account_name}")
+
+    try:
+        choice = int(input("Select an account to delete: ")) - 1
+        selected_account = accounts[choice]
+        if selected_account.delete():
+            input("Press Enter to return to the main menu.")
+    except (ValueError, IndexError):
+        print("Invalid input.")
+
+def delete_transaction():
+    """Allows users to delete a transaction by ID."""
+    clear_screen()
+    print("--- DELETE TRANSACTION ---")
+
+    try:
+        transaction_id = int(input("Enter the Transaction ID to delete: "))
+        transaction = Transaction.find_by_id(transaction_id)
+
+        if transaction:
+            confirm = input(f"Are you sure you want to delete this transaction? (yes/no): ").strip().lower()
+            if confirm == "yes":
+                transaction.delete()
+                print(" Transaction deleted successfully.")
             else:
-                print("Invalid choice. Please select a valid account number.")
-        except ValueError:
-            print("Invalid input. Please enter a number.")
+                print("Transaction deletion canceled.")
+        else:
+            print("No transaction found with that ID.")
 
-    #Check if the account has transactions
-    sql = "SELECT COUNT(*) FROM Transactions WHERE account_id = ?"
-    CURSOR.execute(sql, (account_id,))
-    transaction_count = CURSOR.fetchone()[0]
+    except ValueError:
+        print("Invalid input. Please enter a valid ID.")
 
-    if transaction_count > 0:
-        print(f"Account '{selected_account[1]}' cannot be deleted because it has transactions.")
-        input("Press Enter to return to the main menu.")
-        return
-
-    #Confirm deletion
-    confirm = input(f"Are you sure you want to delete '{selected_account[1]}'? (yes/no): ").lower()
-    if confirm != "yes":
-        print("Account deletion canceled.")
-        input("Press Enter to return to the main menu.")
-        return
-
-    #Delete account
-    sql = "DELETE FROM Accounts WHERE id = ?"
-    CURSOR.execute(sql, (account_id,))
-    CONN.commit()
-
-    print(f"Account '{selected_account[1]}' has been successfully deleted.")
-    input("Press Enter to return to the main menu.")
-
+    input("Press Enter to return to transaction management.")
 
 def view_all_transactions():
     clear_screen()
     print("--- ALL TRANSACTIONS ---")
 
-    sql = """
-    SELECT * FROM Transactions 
-    JOIN Accounts ON Transactions.account_id = Accounts.id
-    ORDER BY Transactions.id DESC
-    """
+    transactions = Transaction.get_all()
 
-    CURSOR.execute(sql)
-    transactions = CURSOR.fetchall()
-
-    if not transactions: 
+    if not transactions:
         print("No Transactions Found.")
-    else: 
+    else:
+        print("ID | Transaction Type | Amount | Account ID")
+        print("-" * 40)
         for txn in transactions:
-            print(f"{txn[1]} ({txn[6]}): ${txn[2]:.2f} ({txn[3]})")
+            print(f"{txn.id} | {txn.transaction_type} | ${txn.amount:.2f} | {txn.account_id}")
 
     input("Press Enter to return to the main menu.")
 
+def find_account_by_id():
+    """Allows user to find an account using its ID."""
+    clear_screen()
+    print("--- FIND ACCOUNT BY ID ---")
+
+    try:
+        account_id = int(input("Enter the Account ID: "))
+        account = Account.find_by_id(account_id)
+
+        if account:
+            print(" Account Found:")
+            print(f"🔹 Account Name: {account.account_name}")
+            print(f"🔹 Account Type: {account.account_type}")
+            print(f"🔹 Target Budget: ${account.target_budget:.2f}")
+        else:
+            print("No account found with that ID.")
+
+    except ValueError:
+        print("Invalid input. Please enter a valid ID.")
+
+    input("Press Enter to return to the main menu.")
+
+def find_transaction_by_id():
+    """Allows user to find a transaction using its ID."""
+    clear_screen()
+    print("--- FIND TRANSACTION BY ID ---")
+
+    try:
+        transaction_id = int(input("Enter the Transaction ID: "))
+        transaction = Transaction.find_by_id(transaction_id)
+
+        if transaction:
+            print(" Transaction Found:")
+            print(f"🔹 Amount: ${transaction.amount:.2f}")
+            print(f"🔹 Type: {transaction.transaction_type}")
+            print(f"🔹 Account ID: {transaction.account_id}")
+        else:
+            print("No transaction found with that ID.")
+
+    except ValueError:
+        print("Invalid input. Please enter a valid ID.")
+
+    input("Press Enter to return to the main menu.")
+
+def manage_transactions():
+    while True:
+        clear_screen()
+        print("""
+        =======================================
+        |         MANAGE TRANSACTIONS         |
+        =======================================
+        | 1. View All Transactions            |
+        | 2. Find Transaction By ID           |
+        | 3. Delete a Transaction             |
+        | 4. Return to Main Menu              |
+        =======================================
+        """)
+        choice = input("Enter your choice (1-4): ").strip()
+
+        if choice == "1":
+            view_all_transactions()
+        elif choice == "2":
+            find_transaction_by_id()  #  Find transactions by ID
+        elif choice == "3":
+            delete_transaction()  #  Delete a transaction by ID
+        elif choice == "4":
+            return  #  Goes back to the main menu
+        else:
+            input("Invalid Choice. Press Enter to try again.")
 
 def exit_program():
     clear_screen()
     print("Goodbye! Thanks for using Simple Saver.")
     sys.exit()
 
-
 def find_transactions_by_account():
-    clear_screen()
-    print("--- FIND TRANSACTIONS BY ACCOUNT ---")
-
-    # Fetch all accounts
-    sql = ("SELECT id, account_name FROM Accounts")
-    CURSOR.execute(sql)
-    accounts = CURSOR.fetchall()
-
+    """Handles user interaction for viewing transactions by account."""
+    accounts = Account.get_all()
     if not accounts:
-        print("No accounts found. Please create an account first.")
+        print("⚠ No accounts found. Please create an account first.")
         input("Press Enter to return to the main menu.")
         return
 
-    # Display account choices using a while loop
-    print("Select an account:")
-    i = 0  # Initialize counter
-    while i < len(accounts):
-        print(f"{i + 1}. {accounts[i][1]}")
-        i += 1  # Increment counter
+    print("--- VIEW TRANSACTIONS BY ACCOUNT ---")
+    for i, account in enumerate(accounts, start=1):
+        print(f"{i}. {account.account_name}")
 
-    # User selects an account
-    while True:
-        try:
-            choice = int(input("Enter the number of the account to view transactions: "))
-            if 1 <= choice <= len(accounts):
-                selected_account = accounts[choice - 1]
-                account_id = selected_account[0]
-                break
-            else:
-                print("Invalid choice. Please select a valid account number.")
-        except ValueError:
-            print("Invalid input. Please enter a number.")
+    print("0. Return to Main Menu")  # Option to go back
 
-    # Fetch transactions for the selected account
-    sql = """
-        SELECT amount, transaction_type 
-        FROM Transactions 
-        WHERE account_id = ?
-        ORDER BY id DESC
-    """
-    CURSOR.execute(sql, (account_id,))
-    transactions = CURSOR.fetchall()
+    try:
+        choice = int(input("Enter the number of the account to view transactions (or 0 to return): ")) - 1
 
-    clear_screen()
-    print(f"--- TRANSACTIONS FOR {selected_account[1]} ---")
-
-    if transactions:
-        print(f"{'Amount':<10} {'Type':<10}")
-        print("-" * 30)
-        i = 0  # Reset counter for transactions
-        while i < len(transactions):
-            print(f"${transactions[i][0]:<10.2f} {transactions[i][1]:<10}")
-            i += 1  # Increment counter
-    else:
-        print("No transactions recorded for this account.")
-
-    input("Press Enter to return to the main menu.")
-
-
-def add_transaction(account):
-    clear_screen()
-    print(f"\n--- ADD TRANSACTION FOR {account[1]} ({account[2]}) ---\n")
-
-    # Ask transaction type
-    print("Transaction Types: Income | Expense")
-    trans_type = input("Enter transaction type: ").strip().capitalize()
-    while trans_type not in ["Income", "Expense"]:
-        print("Error: Invalid transaction type. Choose 'Income' or 'Expense'.")
-        trans_type = input("Enter transaction type: ").strip().capitalize()
-
-    # Get transaction amount (must be positive)
-    while True:
-        try:
-            amount = float(input("Enter transaction amount: $"))
-            if amount <= 0:
-                print("Error: Transaction amount must be greater than zero.")
-            else:
-                break
-        except ValueError:
-            print("Error: Please enter a valid number.")
-
-    # Create and save transaction using `Transaction` class
-    new_transaction = Transaction(account[0], amount, trans_type)
-    new_transaction.save()  # Saves to database
-
-    # Confirmation message
-    print(f"\n✅ {trans_type} of ${amount:.2f} successfully added to {account[1]}.")
-
-    input("\nPress Enter to return to account details.")
-    view_account_details(account)  # Return to account details after adding a transaction
-
-
-def search_transactions():
-    clear_screen()
-    print("\n--- SEARCH TRANSACTIONS ---\n")
-
-    # User selects search type
-    print("Search by:")
-    print("1. Transaction Type (Income/Expense)")
-    print("2. Transaction Amount (Greater Than)")
-    print("3. Transaction Amount (Less Than)")
-    print("4. Return to Main Menu")
-
-    choice = input("Enter your choice: ").strip()
-
-    if choice == "1":
-        search_value = input("\nEnter transaction type (Income/Expense): ").strip().capitalize()
-        sql = "SELECT amount, transaction_type, account_id FROM Transactions WHERE transaction_type = ?"
-        CURSOR.execute(sql, (search_value,))
-    elif choice == "2":
-        try:
-            amount = float(input("\nEnter the minimum amount to search for: $"))
-            sql = "SELECT amount, transaction_type, account_id FROM Transactions WHERE amount >= ?"
-            CURSOR.execute(sql, (amount,))
-        except ValueError:
-            print("\nInvalid input. Please enter a valid number.")
+        if choice == -1:  # User selected 0 (Return to Main Menu)
             return
-    elif choice == "3":
-        try:
-            amount = float(input("\nEnter the maximum amount to search for: $"))
-            sql = "SELECT amount, transaction_type, account_id FROM Transactions WHERE amount <= ?"
-            CURSOR.execute(sql, (amount,))
-        except ValueError:
-            print("\nInvalid input. Please enter a valid number.")
-            return
-    elif choice == "4":
-        return
-    else:
-        print("Invalid choice. Returning to main menu.")
-        return
+        
+        if 0 <= choice < len(accounts):  # Ensure input is within range
+            selected_account = accounts[choice]
+            transactions = Transaction.get_by_account(selected_account.id)
 
-    transactions = CURSOR.fetchall()
+            clear_screen()
+            print(f"--- TRANSACTIONS FOR {selected_account.account_name} ---")
 
-    if transactions:
-        print("\nMatching Transactions:\n")
-        for txn in transactions:
-            print(f"🔹 {txn[1]}: ${txn[0]:.2f} (Account ID: {txn[2]})")
-    else:
-        print("\nNo matching transactions found.")
+            if transactions:
+                for txn in transactions:
+                    print(f"{txn.transaction_type}: ${txn.amount:.2f}")
+            else:
+                print("No transactions recorded for this account.")
 
-    input("\nPress Enter to return to the main menu.")
+        else:
+            print("Invalid choice. Please enter a valid number.")
+            input("Press Enter to try again.")
+            find_transactions_by_account()  # Retry
 
+    except ValueError:
+        print("Invalid input. Please enter a number.")
+        input("Press Enter to try again.")
+        find_transactions_by_account()  # Retry
 

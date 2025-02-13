@@ -1,7 +1,8 @@
 from __init__ import CONN, CURSOR
 
 class Transaction:
-    def __init__(self, account_id, amount, transaction_type):
+    def __init__(self, id, account_id, amount, transaction_type):
+        self.id = id
         self._account_id = None
         self._amount = None
         self._transaction_type = None
@@ -50,12 +51,44 @@ class Transaction:
         '''
         CURSOR.execute(sql, (self.account_id, self.amount, self.transaction_type))
         CONN.commit()
+        self.id = CURSOR.lastrowid
         print(f"Transaction of ${self.amount:.2f} ({self.transaction_type}) saved successfully.")
 
     def delete(self):
         sql = '''
-            DELETE FROM Transactions WHERE account_id = ? AND amount = ? AND transaction_type = ?
+            DELETE FROM Transactions WHERE id = ?
         '''    
-        CURSOR.execute(sql, (self.account_id, self.amount, self.transaction_type))
+        CURSOR.execute(sql, (self.id,))
         CONN.commit()
         print(f"Transaction of ${self.amount:.2f} ({self.transaction_type}) deleted successfully.")
+
+### Class Methods
+    @classmethod
+    def get_by_account(cls, account_id):
+        sql = "SELECT id, amount, transaction_type FROM Transactions WHERE account_id = ?"
+        CURSOR.execute(sql, (account_id,))
+        transactions = CURSOR.fetchall()
+        return [cls(txn[0], account_id, txn[1], txn[2]) for txn in transactions]
+
+    @classmethod
+    def add(cls, account_id, amount, transaction_type):
+        sql = "INSERT INTO Transactions (account_id, amount, transaction_type) VALUES (?, ?, ?)"
+        CURSOR.execute(sql, (account_id, amount, transaction_type))
+        CONN.commit()
+        transaction_id = CURSOR.lastrowid
+
+        return cls(transaction_id, account_id, amount, transaction_type)
+
+    @classmethod
+    def get_all(cls):
+        sql = "SELECT id, account_id, amount, transaction_type FROM Transactions"
+        CURSOR.execute(sql)
+        transactions = CURSOR.fetchall()
+        return [cls(txn[0], txn[1], txn[2], txn[3]) for txn in transactions]
+
+    @classmethod
+    def find_by_id(cls, transaction_id):
+        sql = "SELECT id, account_id, amount, transaction_type FROM Transactions WHERE id = ?"
+        CURSOR.execute(sql, (transaction_id,))
+        txn = CURSOR.fetchone()
+        return cls(*txn) if txn else None

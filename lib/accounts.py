@@ -2,7 +2,8 @@ from __init__ import CONN, CURSOR
 
 class Account:
     
-    def __init__(self, account_name, account_type, target_budget):
+    def __init__(self, id, account_name, account_type, target_budget):
+        self.id = id  
         self._account_name = None
         self._account_type = None
         self._target_budget = None
@@ -52,13 +53,35 @@ class Account:
         '''
         CURSOR.execute(sql, (self.account_name, self.account_type, self.target_budget))
         CONN.commit()
+        self.id = CURSOR.lastrowid 
         print(f"Account '{self.account_name}' saved successfully.")
 
     def delete(self):
-        sql = '''
-            DELETE FROM Accounts WHERE account_name = ? AND account_type = ? AND target_budget = ?
-        '''    
-        CURSOR.execute(sql, (self.account_name, self.account_type, self.target_budget))
+        sql = '''DELETE FROM Accounts WHERE id = ?'''  
+        CURSOR.execute(sql, (self.id,))
         CONN.commit()
         print(f"Account '{self.account_name}' deleted successfully.")
+
+    ### CLASS METHODS
+    @classmethod
+    def create(cls, account_name, account_type, target_budget):
+        sql = "INSERT INTO Accounts (account_name, account_type, target_budget) VALUES (?, ?, ?)"
+        CURSOR.execute(sql, (account_name, account_type, target_budget))
+        CONN.commit()
+        account_id = CURSOR.lastrowid  
+        return cls(account_id, account_name, account_type, target_budget)
+
+    @classmethod
+    def get_all(cls):
+        sql = "SELECT id, account_name, account_type, target_budget FROM Accounts"
+        CURSOR.execute(sql)
+        accounts = CURSOR.fetchall()
+        return [cls(*acc) for acc in accounts]  
+    
+    @classmethod
+    def find_by_id(cls, account_id):
+        sql = "SELECT id, account_name, account_type, target_budget FROM Accounts WHERE id = ?"
+        CURSOR.execute(sql, (account_id,))
+        acc = CURSOR.fetchone()
+        return cls(*acc) if acc else None
 
