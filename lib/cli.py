@@ -167,7 +167,6 @@ def create_account():
         input("Press Enter to return to the main menu.")
         break
 
-
 def delete_account():
     clear_screen()
     print("------- DELETE ACCOUNT -------")
